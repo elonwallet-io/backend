@@ -29,3 +29,7 @@ func (t *Transaction) Rollback() error {
 func (t *Transaction) Users() common.UserRepository {
 	return &UserRepository{tx: t.tx}
 }
+
+func (t *Transaction) Signups() common.SignupRepository {
+	return &SignupRepository{tx: t.tx}
+}

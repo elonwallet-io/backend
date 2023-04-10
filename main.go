@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"os"
 	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 
 func run() error {
 	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
+	signal.Notify(stop, syscall.SIGTERM)
 
 	var cfg config.Config
 	err := config.FromEnv(&cfg)
@@ -36,7 +37,7 @@ func run() error {
 		return fmt.Errorf("validation of config failed: %w", err)
 	}
 
-	tf, err := repository.NewTransactionFactory(cfg.Repository.ConnectionString)
+	tf, err := repository.NewTransactionFactory(cfg.DBConnectionString)
 	if err != nil {
 		return fmt.Errorf("failed to create TransactionFactory: %w", err)
 	}

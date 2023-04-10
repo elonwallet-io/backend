@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/Leantar/elonwallet-backend/models"
+	"github.com/Leantar/elonwallet-backend/server/common"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
@@ -14,11 +15,11 @@ type UserRepository struct {
 }
 
 func (u *UserRepository) CreateUser(user models.User, ctx context.Context) error {
-	const query = `INSERT INTO users("id", "name", "email", "enclave_url") VALUES($1,$2,$3,$4)`
+	const query = `INSERT INTO users("id", "name", "email", "enclave_url", "verification_key") VALUES($1,$2,$3,$4,$5)`
 
-	_, err := u.tx.ExecContext(ctx, query, user.ID, user.Name, user.Email, user.EnclaveURL)
+	_, err := u.tx.ExecContext(ctx, query, user.ID, user.Name, user.Email, user.EnclaveURL, user.VerificationKey)
 	if e, ok := err.(*pq.Error); ok && e.Code == postgresUniqueViolationCode {
-		err = errConflict
+		err = common.ErrConflict
 	}
 
 	return err
@@ -29,7 +30,7 @@ func (u *UserRepository) AddWalletToUser(userID string, wallet models.Wallet, ct
 
 	_, err := u.tx.ExecContext(ctx, query, wallet.Address, wallet.Name, userID)
 	if e, ok := err.(*pq.Error); ok && e.Code == postgresUniqueViolationCode {
-		err = errConflict
+		err = common.ErrConflict
 	}
 
 	return err
@@ -40,7 +41,7 @@ func (u *UserRepository) AddContactToUser(userID, contactID string, ctx context.
 
 	_, err := u.tx.ExecContext(ctx, query, userID, contactID)
 	if e, ok := err.(*pq.Error); ok && e.Code == postgresUniqueViolationCode {
-		err = errConflict
+		err = common.ErrConflict
 	}
 
 	return err
@@ -60,10 +61,17 @@ func (u *UserRepository) RemoveContactFromUser(userID, contactID string, ctx con
 	}
 
 	if n != 1 {
-		return errNotFound
+		return common.ErrNotFound
 	}
 
 	return nil
+}
+
+func (u *UserRepository) SetEnclaveURLAndVerificationKeyForUser(userID, enclaveURL, verificationKey string, ctx context.Context) error {
+	const query = `UPDATE users SET "enclave_url" = $1, "verification_key" = $2 WHERE "id" = $3`
+
+	_, err := u.tx.ExecContext(ctx, query, enclaveURL, verificationKey, userID)
+	return err
 }
 
 func (u *UserRepository) GetUserByID(userID string, ctx context.Context) (models.User, error) {
@@ -75,7 +83,7 @@ func (u *UserRepository) GetUserByID(userID string, ctx context.Context) (models
 	err := u.tx.GetContext(ctx, &user, userQuery, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return models.User{}, errNotFound
+			return models.User{}, common.ErrNotFound
 		}
 		return models.User{}, fmt.Errorf("failed to get dbUser: %w", err)
 	}
@@ -93,12 +101,13 @@ func (u *UserRepository) GetUserByID(userID string, ctx context.Context) (models
 	}
 
 	return models.User{
-		ID:         user.ID,
-		Name:       user.Name,
-		Email:      user.Email,
-		Wallets:    mapWallets(wallets),
-		EnclaveURL: user.EnclaveURL,
-		Contacts:   mapContacts(contacts),
+		ID:              user.ID,
+		Name:            user.Name,
+		Email:           user.Email,
+		Wallets:         mapWallets(wallets),
+		EnclaveURL:      user.EnclaveURL,
+		Contacts:        mapContacts(contacts),
+		VerificationKey: user.VerificationKey,
 	}, nil
 }
 
@@ -111,7 +120,7 @@ func (u *UserRepository) GetUserByEmail(email string, ctx context.Context) (mode
 	err := u.tx.GetContext(ctx, &user, userQuery, email)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return models.User{}, errNotFound
+			return models.User{}, common.ErrNotFound
 		}
 		return models.User{}, fmt.Errorf("failed to get dbUser: %w", err)
 	}
@@ -129,12 +138,13 @@ func (u *UserRepository) GetUserByEmail(email string, ctx context.Context) (mode
 	}
 
 	return models.User{
-		ID:         user.ID,
-		Name:       user.Name,
-		Email:      user.Email,
-		Wallets:    mapWallets(wallets),
-		EnclaveURL: user.EnclaveURL,
-		Contacts:   mapContacts(contacts),
+		ID:              user.ID,
+		Name:            user.Name,
+		Email:           user.Email,
+		Wallets:         mapWallets(wallets),
+		EnclaveURL:      user.EnclaveURL,
+		Contacts:        mapContacts(contacts),
+		VerificationKey: user.VerificationKey,
 	}, nil
 }
 
