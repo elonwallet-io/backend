@@ -138,16 +138,13 @@ func (a *Api) HandleCreateUser() echo.HandlerFunc {
 
 func (a *Api) HandleResendActivationLink() echo.HandlerFunc {
 	type input struct {
-		Email string `validate:"required,email"`
+		Email string `param:"email" validate:"required,email"`
 	}
 
 	return func(c echo.Context) error {
-		email, err := url.QueryUnescape(c.Param("email"))
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "invalid escape sequence").SetInternal(err)
-		}
-		in := input{
-			Email: email,
+		var in input
+		if err := c.Bind(&in); err != nil {
+			return err
 		}
 		if err := c.Validate(&in); err != nil {
 			return err
@@ -192,17 +189,11 @@ func (a *Api) HandleResendActivationLink() echo.HandlerFunc {
 
 func (a *Api) HandleActivateUser() echo.HandlerFunc {
 	type input struct {
-		Email            string `json:"-" validate:"required,email"`
+		Email            string `param:"email" validate:"required,email"`
 		ActivationString string `json:"activation_string" validate:"required,hexadecimal,len=64"`
 	}
 	return func(c echo.Context) error {
-		email, err := url.QueryUnescape(c.Param("email"))
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "invalid escape sequence").SetInternal(err)
-		}
-		in := input{
-			Email: email,
-		}
+		var in input
 		if err := c.Bind(&in); err != nil {
 			return err
 		}
@@ -258,7 +249,7 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 
 func (a *Api) HandleGetUser() echo.HandlerFunc {
 	type input struct {
-		Email string `validate:"required,email"`
+		Email string `param:"email" validate:"required,email"`
 	}
 
 	type output struct {
@@ -271,12 +262,9 @@ func (a *Api) HandleGetUser() echo.HandlerFunc {
 		VerificationKey string          `json:"-"`
 	}
 	return func(c echo.Context) error {
-		email, err := url.QueryUnescape(c.Param("email"))
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "invalid escape sequence").SetInternal(err)
-		}
-		in := input{
-			Email: email,
+		var in input
+		if err := c.Bind(&in); err != nil {
+			return err
 		}
 		if err := c.Validate(&in); err != nil {
 			return err
@@ -298,7 +286,7 @@ func (a *Api) HandleGetUser() echo.HandlerFunc {
 
 func (a *Api) HandleGetEnclaveURL() echo.HandlerFunc {
 	type input struct {
-		Email string `validate:"required,email"`
+		Email string `param:"email" validate:"required,email"`
 	}
 
 	type output struct {
@@ -311,12 +299,9 @@ func (a *Api) HandleGetEnclaveURL() echo.HandlerFunc {
 		VerificationKey string          `json:"-"`
 	}
 	return func(c echo.Context) error {
-		email, err := url.QueryUnescape(c.Param("email"))
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "invalid escape sequence").SetInternal(err)
-		}
-		in := input{
-			Email: email,
+		var in input
+		if err := c.Bind(&in); err != nil {
+			return err
 		}
 		if err := c.Validate(&in); err != nil {
 			return err
@@ -432,7 +417,7 @@ func sendActivationLink(user models.User, signup models.Signup, cfg config.Confi
 	builder.WriteString(fmt.Sprintf("To: %s\r\n", user.Email))
 	builder.WriteString("Subject: Activate your Elonwallet.io Account\r\n\r\n")
 	builder.WriteString("Please follow the link below to activate your account:\r\n")
-	builder.WriteString(fmt.Sprintf("%s/activate?user=%s&activation_string=%s\r\n", cfg.CorsAllowedUrl, url.QueryEscape(user.Email), signup.ActivationString))
+	builder.WriteString(fmt.Sprintf("%s/activate?user=%s&activation_string=%s\r\n", cfg.FrontendURL, url.QueryEscape(user.Email), signup.ActivationString))
 
 	auth := smtp.PlainAuth("", cfg.Email.User, cfg.Email.Password, cfg.Email.AuthHost)
 	err := smtp.SendMail(cfg.Email.SmtpHost, auth, cfg.Email.User, receiver, []byte(builder.String()))
