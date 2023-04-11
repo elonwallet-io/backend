@@ -11,7 +11,7 @@ func (s *Server) registerRoutes() error {
 	api := handlers.NewApi(s.tf, s.cfg)
 
 	s.echo.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{s.cfg.CorsAllowedUrl},
+		AllowOrigins:     []string{s.cfg.FrontendURL},
 		AllowMethods:     []string{http.MethodHead, http.MethodGet, http.MethodPost, http.MethodPut},
 		AllowCredentials: true,
 	}))

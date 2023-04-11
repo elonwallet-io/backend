@@ -80,11 +80,12 @@ func (a *Api) HandleCreateContact() echo.HandlerFunc {
 
 func (a *Api) HandleRemoveContact() echo.HandlerFunc {
 	type input struct {
-		Email string `validate:"required,email"`
+		Email string `param:"email" validate:"required,email"`
 	}
 	return func(c echo.Context) error {
-		in := input{
-			Email: c.Param("email"),
+		var in input
+		if err := c.Bind(&in); err != nil {
+			return err
 		}
 		if err := c.Validate(&in); err != nil {
 			return err
