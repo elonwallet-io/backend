@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Leantar/elonwallet-backend/models"
 	"github.com/Leantar/elonwallet-backend/server/common"
@@ -10,12 +11,13 @@ import (
 
 func (a *Api) HandleGetContacts() echo.HandlerFunc {
 	type contact struct {
-		ID         string          `json:"-"`
-		Name       string          `json:"name"`
-		Email      string          `json:"email"`
-		Wallets    []models.Wallet `json:"wallets"`
-		EnclaveURL string          `json:"-"`
-		Contacts   []string        `json:"-"`
+		ID              string          `json:"-"`
+		Name            string          `json:"name"`
+		Email           string          `json:"email"`
+		Wallets         []models.Wallet `json:"wallets"`
+		EnclaveURL      string          `json:"-"`
+		Contacts        []string        `json:"-"`
+		VerificationKey string          `json:"-"`
 	}
 
 	type output struct {
@@ -57,7 +59,7 @@ func (a *Api) HandleCreateContact() echo.HandlerFunc {
 		tx := c.Get("tx").(common.Transaction)
 
 		con, err := tx.Users().GetUserByEmail(in.Email, c.Request().Context())
-		if a.tf.IsErrNotFound(err) {
+		if errors.Is(err, common.ErrNotFound) {
 			return echo.NewHTTPError(http.StatusNotFound, "contact does not exist")
 		}
 		if err != nil {
@@ -65,7 +67,7 @@ func (a *Api) HandleCreateContact() echo.HandlerFunc {
 		}
 
 		err = tx.Users().AddContactToUser(user.ID, con.ID, c.Request().Context())
-		if a.tf.IsErrNotFound(err) {
+		if errors.Is(err, common.ErrNotFound) {
 			return echo.NewHTTPError(http.StatusConflict, "contact does already exist")
 		}
 		if err != nil {
@@ -92,7 +94,7 @@ func (a *Api) HandleRemoveContact() echo.HandlerFunc {
 		tx := c.Get("tx").(common.Transaction)
 
 		con, err := tx.Users().GetUserByEmail(in.Email, c.Request().Context())
-		if a.tf.IsErrNotFound(err) {
+		if errors.Is(err, common.ErrNotFound) {
 			return echo.NewHTTPError(http.StatusNotFound, "contact does not exist")
 		}
 		if err != nil {
@@ -100,7 +102,7 @@ func (a *Api) HandleRemoveContact() echo.HandlerFunc {
 		}
 
 		err = tx.Users().RemoveContactFromUser(user.ID, con.ID, c.Request().Context())
-		if a.tf.IsErrNotFound(err) {
+		if errors.Is(err, common.ErrNotFound) {
 			return echo.NewHTTPError(http.StatusNotFound, "contact does not exist")
 		}
 		if err != nil {

@@ -11,10 +11,10 @@ type ErrorResponse struct {
 
 type Api struct {
 	tf  common.TransactionFactory
-	cfg config.ApiConfig
+	cfg config.Config
 }
 
-func NewApi(tf common.TransactionFactory, config config.ApiConfig) *Api {
+func NewApi(tf common.TransactionFactory, config config.Config) *Api {
 	return &Api{
 		tf:  tf,
 		cfg: config,

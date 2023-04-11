@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"errors"
 	"fmt"
 	"github.com/Leantar/elonwallet-backend/server/common"
 	"github.com/jmoiron/sqlx"
@@ -10,11 +9,6 @@ import (
 
 const (
 	postgresUniqueViolationCode = "23505"
-)
-
-var (
-	errNotFound = errors.New("target resource not found")
-	errConflict = errors.New("target resource does already exist")
 )
 
 type TransactionFactory struct {
@@ -40,13 +34,6 @@ func (tf *TransactionFactory) Begin() (common.Transaction, error) {
 	}
 
 	return &Transaction{tx}, nil
-}
-
-func (tf *TransactionFactory) IsErrNotFound(err error) bool {
-	return err == errNotFound
-}
-func (tf *TransactionFactory) IsErrConflict(err error) bool {
-	return err == errConflict
 }
 
 func NewTransactionFactory(connectionString string) (*TransactionFactory, error) {

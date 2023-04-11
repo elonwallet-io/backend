@@ -9,9 +9,9 @@ import (
 
 func (a *Api) HandleGetTransactions() echo.HandlerFunc {
 	type input struct {
-		Cursor  string
-		Address string `validate:"required,eth_addr"`
-		Chain   string `validate:"required"`
+		Cursor  string `query:"cursor"`
+		Address string `param:"address" validate:"required,eth_addr"`
+		Chain   string `query:"chain" validate:"required"`
 	}
 
 	type Transaction struct {
@@ -50,10 +50,9 @@ func (a *Api) HandleGetTransactions() echo.HandlerFunc {
 	}
 
 	return func(c echo.Context) error {
-		in := input{
-			Cursor:  c.QueryParam("cursor"),
-			Address: c.Param("address"),
-			Chain:   c.QueryParam("chain"),
+		var in input
+		if err := c.Bind(&in); err != nil {
+			return err
 		}
 		if err := c.Validate(&in); err != nil {
 			return err
@@ -66,103 +65,85 @@ func (a *Api) HandleGetTransactions() echo.HandlerFunc {
 			moralisUrl = fmt.Sprintf("%s&disable_total=true&cursor=%s", moralisUrl, in.Cursor)
 		}
 
-		req, err := http.NewRequest("GET", moralisUrl, nil)
+		var response moralisResponse
+		err := fetchFromMoralis(moralisUrl, a.cfg.MoralisApiKey, &response)
 		if err != nil {
-			return fmt.Errorf("failed to instantiate request: %w", err)
+			return err
 		}
-		req.Header.Add("accept", "application/json")
-		req.Header.Add("X-API-Key", a.cfg.MoralisApiKey)
 
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return fmt.Errorf("failed to make request: %w", err)
+		out := output{
+			Cursor:       response.Cursor,
+			Transactions: response.Result,
+			Total:        response.Total,
 		}
-		defer func() {
-			_ = res.Body.Close()
-		}()
 
-		switch res.StatusCode {
-		case http.StatusBadRequest:
-			var response ErrorResponse
-			if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
-				return fmt.Errorf("failed to decode moralis response: %w", err)
-			}
-			return echo.NewHTTPError(http.StatusBadRequest, response.Message)
-		case http.StatusOK:
-			var response moralisResponse
-			if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
-				return fmt.Errorf("failed to decode moralis response: %w", err)
-			}
-			out := output{
-				Cursor:       response.Cursor,
-				Transactions: response.Result,
-				Total:        response.Total,
-			}
-
-			return c.JSON(http.StatusOK, out)
-		default:
-			var response ErrorResponse
-			if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
-				return fmt.Errorf("failed to decode moralis response: %w", err)
-			}
-			return echo.NewHTTPError(http.StatusBadRequest, response.Message)
-		}
+		return c.JSON(http.StatusOK, out)
 	}
 }
 
 func (a *Api) HandleGetBalance() echo.HandlerFunc {
 	type input struct {
-		Address string `validate:"required,eth_addr"`
-		Chain   string `validate:"required"`
+		Address string `param:"address" validate:"required,eth_addr"`
+		Chain   string `query:"chain" validate:"required"`
 	}
 
 	type output struct {
 		Balance string `json:"balance"`
 	}
 	return func(c echo.Context) error {
-		in := input{
-			Address: c.Param("address"),
-			Chain:   c.QueryParam("chain"),
+		var in input
+		if err := c.Bind(&in); err != nil {
+			return err
 		}
 		if err := c.Validate(&in); err != nil {
 			return err
 		}
 
 		moralisUrl := fmt.Sprintf("https://deep-index.moralis.io/api/v2/%s/balance?chain=%s", in.Address, in.Chain)
-		req, err := http.NewRequest("GET", moralisUrl, nil)
-		if err != nil {
-			return fmt.Errorf("failed to instantiate request: %w", err)
-		}
-		req.Header.Add("accept", "application/json")
-		req.Header.Add("X-API-Key", a.cfg.MoralisApiKey)
 
-		res, err := http.DefaultClient.Do(req)
+		var out output
+		err := fetchFromMoralis(moralisUrl, a.cfg.MoralisApiKey, &out)
 		if err != nil {
-			return fmt.Errorf("failed to make request: %w", err)
+			return err
 		}
-		defer func() {
-			_ = res.Body.Close()
-		}()
 
-		switch res.StatusCode {
-		case http.StatusBadRequest:
-			var response ErrorResponse
-			if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
-				return fmt.Errorf("failed to decode moralis response: %w", err)
-			}
-			return echo.NewHTTPError(http.StatusBadRequest, response.Message)
-		case http.StatusOK:
-			var response output
-			if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
-				return fmt.Errorf("failed to decode moralis response: %w", err)
-			}
-			return c.JSON(http.StatusOK, response)
-		default:
-			var response ErrorResponse
-			if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
-				return fmt.Errorf("failed to decode moralis response: %w", err)
-			}
-			return echo.NewHTTPError(http.StatusBadRequest, response.Message)
+		return c.JSON(http.StatusOK, out)
+	}
+}
+
+func fetchFromMoralis(url, apiKey string, out any) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to instantiate request: %w", err)
+	}
+	req.Header.Add("accept", "application/json")
+	req.Header.Add("X-API-Key", apiKey)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %w", err)
+	}
+	defer func() {
+		_ = res.Body.Close()
+	}()
+
+	switch res.StatusCode {
+	case http.StatusBadRequest:
+		var response ErrorResponse
+		if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+			return fmt.Errorf("failed to decode moralis response: %w", err)
 		}
+		return echo.NewHTTPError(http.StatusBadRequest, response.Message)
+	case http.StatusOK:
+		if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+			return fmt.Errorf("failed to decode moralis response: %w", err)
+		}
+		return nil
+	default:
+		var response ErrorResponse
+		if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+			return fmt.Errorf("failed to decode moralis response: %w", err)
+		}
+		return echo.NewHTTPError(http.StatusBadRequest, response.Message)
 	}
 }
