@@ -23,6 +23,7 @@ func main() {
 }
 
 func run() error {
+	fmt.Println("hello ci")
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM)
 
