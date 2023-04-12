@@ -9,7 +9,6 @@ import (
 
 func (a *Api) HandleGetTransactions() echo.HandlerFunc {
 	type input struct {
-		Cursor  string `query:"cursor"`
 		Address string `param:"address" validate:"required,eth_addr"`
 		Chain   string `query:"chain" validate:"required"`
 	}
@@ -44,7 +43,6 @@ func (a *Api) HandleGetTransactions() echo.HandlerFunc {
 	}
 
 	type output struct {
-		Cursor       string        `json:"cursor"`
 		Transactions []Transaction `json:"transactions"`
 		Total        int64         `json:"total"`
 	}
@@ -58,12 +56,7 @@ func (a *Api) HandleGetTransactions() echo.HandlerFunc {
 			return err
 		}
 
-		moralisUrl := fmt.Sprintf("https://deep-index.moralis.io/api/v2/%s?chain=%s&limit=10", in.Address, in.Chain)
-		if in.Cursor == "" {
-			moralisUrl += "&disable_total=false"
-		} else {
-			moralisUrl = fmt.Sprintf("%s&disable_total=true&cursor=%s", moralisUrl, in.Cursor)
-		}
+		moralisUrl := fmt.Sprintf("https://deep-index.moralis.io/api/v2/%s?chain=%s&limit=50&disable_total=true", in.Address, in.Chain)
 
 		var response moralisResponse
 		err := fetchFromMoralis(moralisUrl, a.cfg.MoralisApiKey, &response)
@@ -72,7 +65,6 @@ func (a *Api) HandleGetTransactions() echo.HandlerFunc {
 		}
 
 		out := output{
-			Cursor:       response.Cursor,
 			Transactions: response.Result,
 			Total:        response.Total,
 		}
