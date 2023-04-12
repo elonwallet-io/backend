@@ -28,6 +28,8 @@ func New(cfg config.Config, tf common.TransactionFactory) *Server {
 	cv := CustomValidator{
 		validator: validator.New(),
 	}
+
+	e.Binder = &BinderWithURLDecoding{&echo.DefaultBinder{}}
 	e.Validator = &cv
 	e.Use(middleware.RequestID())
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
