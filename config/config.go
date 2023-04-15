@@ -3,7 +3,6 @@ package config
 type Config struct {
 	MoralisApiKey      string `env:"MORALIS_API_KEY" validate:"required"`
 	EnclaveURL         string `env:"ENCLAVE_URL" validate:"required"`
-	Host               string `env:"HOST" validate:"required"`
 	FrontendURL        string `env:"FRONTEND_URL" validate:"required"`
 	DBConnectionString string `env:"DB_CONNECTION_STRING" validate:"required"`
 	Email              EmailConfig

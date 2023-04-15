@@ -1,15 +1,25 @@
 package server
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/hex"
-	"errors"
 	"fmt"
+	"github.com/Leantar/elonwallet-backend/models"
 	"github.com/Leantar/elonwallet-backend/server/common"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	"net/http"
 )
+
+const (
+	Enclave = "elonwallet-enclave"
+	Backend = "elonwallet-backend"
+)
+
+type BackendClaims struct {
+	jwt.RegisteredClaims
+}
 
 func CheckAuthentication() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -18,25 +28,12 @@ func CheckAuthentication() echo.MiddlewareFunc {
 			if len(bearer) < 8 {
 				return echo.NewHTTPError(http.StatusUnauthorized, "Missing or invalid session")
 			}
-			email := c.Request().Header.Get("X-Email")
 
 			tx := c.Get("tx").(common.Transaction)
 
-			user, err := tx.Users().GetUserByEmail(email, c.Request().Context())
-			if errors.Is(err, common.ErrNotFound) {
-				return echo.NewHTTPError(http.StatusUnauthorized, "Missing or invalid session")
-			}
+			user, err := validateJWT(bearer[7:], tx, c.Request().Context())
 			if err != nil {
-				return fmt.Errorf("failed to get user by id: %w", err)
-			}
-
-			pk, err := hex.DecodeString(user.VerificationKey)
-			if err != nil {
-				return fmt.Errorf("failed to decode verification key: %w", err)
-			}
-
-			if !validateJWT(bearer[7:], pk) {
-				return echo.NewHTTPError(http.StatusUnauthorized, "Missing or invalid session")
+				return echo.NewHTTPError(http.StatusUnauthorized, "Missing or invalid session").SetInternal(err)
 			}
 
 			c.Set("user", user)
@@ -46,16 +43,33 @@ func CheckAuthentication() echo.MiddlewareFunc {
 	}
 }
 
-func validateJWT(tokenString string, pk ed25519.PublicKey) bool {
+func validateJWT(tokenString string, tx common.Transaction, ctx context.Context) (user models.User, err error) {
 	parser := jwt.NewParser(
 		jwt.WithIssuedAt(),
 		jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
-		jwt.WithAudience("backend"),
+		jwt.WithAudience(Backend),
+		jwt.WithIssuer(Enclave),
 	)
 
-	_, err := parser.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return pk, nil
+	var claims BackendClaims
+	_, err = parser.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
+		subject, err := token.Claims.GetSubject()
+		if err != nil {
+			return nil, err
+		}
+
+		user, err = tx.Users().GetUserByEmail(subject, ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get user: %w", err)
+		}
+
+		pk, err := hex.DecodeString(user.VerificationKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode verification key: %w", err)
+		}
+
+		return ed25519.PublicKey(pk), nil
 	})
 
-	return err == nil
+	return
 }
