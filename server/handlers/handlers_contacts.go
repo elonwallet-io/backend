@@ -67,7 +67,7 @@ func (a *Api) HandleCreateContact() echo.HandlerFunc {
 		}
 
 		err = tx.Users().AddContactToUser(user.ID, con.ID, c.Request().Context())
-		if errors.Is(err, common.ErrNotFound) {
+		if errors.Is(err, common.ErrConflict) {
 			return echo.NewHTTPError(http.StatusConflict, "contact does already exist")
 		}
 		if err != nil {
