@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -230,13 +231,17 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 			return fmt.Errorf("failed to save updated signup: %w", err)
 		}
 
-		pk, err := getVerificationKey(a.cfg.EnclaveURL)
+		enclaveURL, err := deployEnclave(a.cfg.DeployerURL, user.ID)
 		if err != nil {
-			return fmt.Errorf("failed to get verification key: %w", err)
+			return err
 		}
 
-		//TODO Remove later
-		enclaveURL := strings.ReplaceAll(a.cfg.EnclaveURL, "function", "localhost")
+		pk, err := getVerificationKey(enclaveURL)
+		if err != nil {
+			return err
+		}
+
+		enclaveURL = strings.ReplaceAll(enclaveURL, "host.docker.internal", "localhost")
 
 		err = tx.Users().SetEnclaveURLAndVerificationKeyForUser(user.ID, enclaveURL, hex.EncodeToString(pk), c.Request().Context())
 		if err != nil {
@@ -290,13 +295,7 @@ func (a *Api) HandleGetEnclaveURL() echo.HandlerFunc {
 	}
 
 	type output struct {
-		ID              string          `json:"-"`
-		Name            string          `json:"-"`
-		Email           string          `json:"-"`
-		Wallets         []models.Wallet `json:"-"`
-		EnclaveURL      string          `json:"enclave_url"`
-		Contacts        []string        `json:"-"`
-		VerificationKey string          `json:"-"`
+		EnclaveURL string `json:"enclave_url"`
 	}
 	return func(c echo.Context) error {
 		var in input
@@ -321,16 +320,7 @@ func (a *Api) HandleGetEnclaveURL() echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusBadRequest, "user has not been verified yet")
 		}
 
-		c.SetCookie(&http.Cookie{
-			Name:     "user_email",
-			Value:    user.Email,
-			Expires:  time.Now().Add(time.Hour * 48),
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteLaxMode,
-			Path:     "/",
-		})
-		return c.JSON(http.StatusOK, output(user))
+		return c.JSON(http.StatusOK, output{user.EnclaveURL})
 	}
 }
 
@@ -446,4 +436,35 @@ func getVerificationKey(enclaveURL string) (ed25519.PublicKey, error) {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 	return in.VerificationKey, nil
+}
+
+func deployEnclave(deployerURL, name string) (string, error) {
+	type payload struct {
+		Name string `json:"name"`
+	}
+
+	body, err := json.Marshal(payload{name})
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal json: %w", err)
+	}
+
+	res, err := http.Post(fmt.Sprintf("%s/enclaves", deployerURL), "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return "", fmt.Errorf("failed to deploy enclave: %w", err)
+	}
+
+	if res.StatusCode != 200 {
+		return "", fmt.Errorf("received error status code: %d", res.StatusCode)
+	}
+
+	type input struct {
+		EnclaveURL string `json:"url"`
+	}
+
+	var in input
+	if err := json.NewDecoder(res.Body).Decode(&in); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return in.EnclaveURL, nil
 }
