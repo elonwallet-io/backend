@@ -218,7 +218,7 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 		}
 
 		if signup.ValidUntil < time.Now().Unix() {
-			return echo.NewHTTPError(http.StatusBadRequest, "invitation link has expired")
+			return echo.NewHTTPError(http.StatusBadRequest, "activation link has expired")
 		}
 
 		if signup.ActivationString != in.ActivationString {
