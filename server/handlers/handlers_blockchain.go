@@ -9,7 +9,7 @@ import (
 
 func (a *Api) HandleGetTransactions() echo.HandlerFunc {
 	type input struct {
-		Address string `param:"address" validate:"required,eth_addr"`
+		Address string `param:"address" validate:"required,ethereum_address"`
 		Chain   string `query:"chain" validate:"required"`
 	}
 
@@ -75,7 +75,7 @@ func (a *Api) HandleGetTransactions() echo.HandlerFunc {
 
 func (a *Api) HandleGetBalance() echo.HandlerFunc {
 	type input struct {
-		Address string `param:"address" validate:"required,eth_addr"`
+		Address string `param:"address" validate:"required,ethereum_address"`
 		Chain   string `query:"chain" validate:"required"`
 	}
 
