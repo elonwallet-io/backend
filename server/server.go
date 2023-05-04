@@ -5,7 +5,6 @@ import (
 	"github.com/Leantar/elonwallet-backend/config"
 	"github.com/Leantar/elonwallet-backend/server/common"
 	customMiddleware "github.com/Leantar/elonwallet-backend/server/middleware"
-	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"net/http"
@@ -24,9 +23,7 @@ func New(cfg config.Config, tf common.TransactionFactory) *Server {
 	e.Server.WriteTimeout = 10 * time.Second
 	e.Server.IdleTimeout = 120 * time.Second
 
-	cv := CustomValidator{
-		validator: validator.New(),
-	}
+	cv := newValidator()
 
 	e.Binder = &BinderWithURLDecoding{&echo.DefaultBinder{}}
 	e.Validator = &cv

@@ -14,6 +14,7 @@ import (
 	"github.com/Leantar/elonwallet-backend/server/common"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"golang.org/x/exp/slices"
 	"io"
 	"net/http"
 	"net/smtp"
@@ -22,15 +23,13 @@ import (
 	"time"
 )
 
-func (a *Api) HandleCreateUserViaPostman() echo.HandlerFunc {
-	type wallet struct {
-		Name    string `json:"name" validate:"required,alphanum"`
-		Address string `json:"address" validate:"required,eth_addr"`
-	}
+func (a *Api) HandleAddWalletInitialize() echo.HandlerFunc {
 	type input struct {
-		Name    string   `json:"name" validate:"required"`
-		Email   string   `json:"email" validate:"required,email"`
-		Wallets []wallet `json:"wallets"`
+		Address string `json:"address" validate:"required,ethereum_address"`
+	}
+
+	type output struct {
+		Challenge string `json:"challenge"`
 	}
 
 	return func(c echo.Context) error {
@@ -42,39 +41,29 @@ func (a *Api) HandleCreateUserViaPostman() echo.HandlerFunc {
 			return err
 		}
 
-		user, err := newUser(in.Name, in.Email)
+		user := c.Get("user").(models.User)
+		if walletExists(in.Address, user) {
+			return echo.NewHTTPError(http.StatusConflict, "Wallet is already registered")
+		}
+
+		challenge, err := getChallenge()
 		if err != nil {
 			return err
 		}
 
-		tx := c.Get("tx").(common.Transaction)
+		a.mu.Lock()
+		a.challenges[in.Address] = challenge
+		a.mu.Unlock()
 
-		err = tx.Users().CreateUser(user, c.Request().Context())
-		if errors.Is(err, common.ErrConflict) {
-			return echo.NewHTTPError(http.StatusConflict, "target resource does already exist")
-		}
-		if err != nil {
-			return fmt.Errorf("failed to create user: %w", err)
-		}
-
-		for _, w := range in.Wallets {
-			err = tx.Users().AddWalletToUser(user.ID, models.Wallet(w), c.Request().Context())
-			if errors.Is(err, common.ErrConflict) {
-				return echo.NewHTTPError(http.StatusConflict, "target resource does already exist")
-			}
-			if err != nil {
-				return fmt.Errorf("failed to create user: %w", err)
-			}
-		}
-
-		return c.NoContent(http.StatusCreated)
+		return c.JSON(http.StatusOK, output{Challenge: challenge})
 	}
 }
 
-func (a *Api) HandleAddWallet() echo.HandlerFunc {
+func (a *Api) HandleAddWalletFinalize() echo.HandlerFunc {
 	type input struct {
-		Name    string `json:"name" validate:"required,alphanum"`
-		Address string `json:"address" validate:"required,eth_addr"`
+		Name      string `json:"name" validate:"required,alphanum"`
+		Address   string `json:"address" validate:"required,ethereum_address"`
+		Signature string `json:"signature" validate:"required,hexadecimal"`
 	}
 
 	return func(c echo.Context) error {
@@ -89,12 +78,31 @@ func (a *Api) HandleAddWallet() echo.HandlerFunc {
 		user := c.Get("user").(models.User)
 		tx := c.Get("tx").(common.Transaction)
 
-		err := tx.Users().AddWalletToUser(user.ID, models.Wallet(in), c.Request().Context())
+		a.mu.Lock()
+		defer a.mu.Unlock()
+		challenge, ok := a.challenges[in.Address]
+		if !ok {
+			return echo.NewHTTPError(http.StatusConflict, "No challenge requested for this address")
+		}
+		delete(a.challenges, in.Address)
+
+		valid, err := verifyPersonalSignature(challenge, in.Signature, in.Address)
+		if err != nil {
+			return err
+		}
+		if !valid {
+			return echo.NewHTTPError(http.StatusBadRequest, "Invalid signature")
+		}
+
+		err = tx.Users().AddWalletToUser(user.ID, models.Wallet{
+			Name:    in.Name,
+			Address: in.Address,
+		}, c.Request().Context())
 		if errors.Is(err, common.ErrConflict) {
-			return echo.NewHTTPError(http.StatusConflict, "target resource does already exist")
+			return echo.NewHTTPError(http.StatusConflict, "Wallet is already registered")
 		}
 		if err != nil {
-			return fmt.Errorf("failed to create user: %w", err)
+			return fmt.Errorf("failed to add wallet to user: %w", err)
 		}
 
 		return c.NoContent(http.StatusCreated)
@@ -467,4 +475,21 @@ func deployEnclave(deployerURL, name string) (string, error) {
 	}
 
 	return in.EnclaveURL, nil
+}
+
+func walletExists(address string, user models.User) bool {
+	addr := strings.ToLower(address)
+	return slices.ContainsFunc(user.Wallets, func(wallet models.Wallet) bool {
+		return strings.ToLower(wallet.Address) == addr
+	})
+}
+
+func getChallenge() (string, error) {
+	buf := make([]byte, 32)
+	_, err := io.ReadFull(rand.Reader, buf)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate challenge: %w", err)
+	}
+
+	return hex.EncodeToString(buf), nil
 }
