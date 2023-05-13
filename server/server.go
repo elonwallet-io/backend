@@ -22,10 +22,11 @@ type Server struct {
 
 func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 	e := echo.New()
-
-	cc, err := NewCertificateCache("/certs/backend-cert.pem", "/certs/backend-key.pem")
-	if err != nil {
-		return nil, err
+	s := &Server{
+		echo: e,
+		cfg:  cfg,
+		tf:   tf,
+		cc:   nil,
 	}
 
 	if cfg.DevelopmentMode {
@@ -35,6 +36,13 @@ func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 		e.Server.ErrorLog = e.StdLogger
 		e.Server.Addr = "0.0.0.0:8080"
 	} else {
+		cc, err := NewCertificateCache("/certs/backend-cert.pem", "/certs/backend-key.pem")
+		if err != nil {
+			return nil, err
+		}
+
+		s.cc = cc
+
 		e.TLSServer.ReadTimeout = 5 * time.Second
 		e.TLSServer.WriteTimeout = 10 * time.Second
 		e.TLSServer.IdleTimeout = 120 * time.Second
@@ -63,12 +71,7 @@ func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 	e.Use(customMiddleware.Cors(cfg.FrontendURL))
 	e.Use(customMiddleware.ManageTransaction(tf))
 
-	return &Server{
-		echo: e,
-		cfg:  cfg,
-		tf:   tf,
-		cc:   cc,
-	}, nil
+	return s, nil
 }
 
 func (s *Server) Run() (err error) {
