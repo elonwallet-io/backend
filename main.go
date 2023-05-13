@@ -42,7 +42,11 @@ func run() error {
 		return fmt.Errorf("failed to create TransactionFactory: %w", err)
 	}
 
-	s := server.New(cfg, tf)
+	s, err := server.New(cfg, tf)
+	if err != nil {
+		return fmt.Errorf("failed to create server: %w", err)
+	}
+
 	go func() {
 		err := s.Run()
 		if err != nil {

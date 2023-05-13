@@ -17,10 +17,17 @@ type Server struct {
 	echo *echo.Echo
 	cfg  config.Config
 	tf   common.TransactionFactory
+	cc   *CertificateCache
 }
 
-func New(cfg config.Config, tf common.TransactionFactory) *Server {
+func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 	e := echo.New()
+	s := &Server{
+		echo: e,
+		cfg:  cfg,
+		tf:   tf,
+		cc:   nil,
+	}
 
 	if cfg.DevelopmentMode {
 		e.Server.ReadTimeout = 5 * time.Second
@@ -29,6 +36,13 @@ func New(cfg config.Config, tf common.TransactionFactory) *Server {
 		e.Server.ErrorLog = e.StdLogger
 		e.Server.Addr = "0.0.0.0:8080"
 	} else {
+		cc, err := NewCertificateCache("/certs/backend-cert.pem", "/certs/backend-key.pem")
+		if err != nil {
+			return nil, err
+		}
+
+		s.cc = cc
+
 		e.TLSServer.ReadTimeout = 5 * time.Second
 		e.TLSServer.WriteTimeout = 10 * time.Second
 		e.TLSServer.IdleTimeout = 120 * time.Second
@@ -43,6 +57,7 @@ func New(cfg config.Config, tf common.TransactionFactory) *Server {
 				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 			},
+			GetCertificate: cc.GetCertificate,
 		}
 		e.TLSServer.Addr = "0.0.0.0:8443"
 	}
@@ -56,11 +71,7 @@ func New(cfg config.Config, tf common.TransactionFactory) *Server {
 	e.Use(customMiddleware.Cors(cfg.FrontendURL))
 	e.Use(customMiddleware.ManageTransaction(tf))
 
-	return &Server{
-		echo: e,
-		cfg:  cfg,
-		tf:   tf,
-	}
+	return s, nil
 }
 
 func (s *Server) Run() (err error) {
@@ -74,7 +85,7 @@ func (s *Server) Run() (err error) {
 		err = s.echo.Server.ListenAndServe()
 	} else {
 		log.Info().Caller().Msgf("https server started on %s", s.echo.TLSServer.Addr)
-		err = s.echo.TLSServer.ListenAndServeTLS("/certs/backend-cert.pem", "/certs/backend-key.pem")
+		err = s.echo.TLSServer.ListenAndServeTLS("", "")
 	}
 
 	if err == http.ErrServerClosed {
