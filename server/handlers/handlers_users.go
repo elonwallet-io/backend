@@ -225,7 +225,7 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 			return fmt.Errorf("failed to get signup: %w", err)
 		}
 
-		if signup.ValidUntil < time.Now().Unix() {
+		if time.Now().After(time.Unix(signup.ValidUntil, 0)) {
 			return echo.NewHTTPError(http.StatusBadRequest, "activation link has expired")
 		}
 
@@ -248,8 +248,6 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 		if err != nil {
 			return err
 		}
-
-		enclaveURL = strings.ReplaceAll(enclaveURL, "host.docker.internal", "localhost")
 
 		err = tx.Users().SetEnclaveURLAndVerificationKeyForUser(user.ID, enclaveURL, hex.EncodeToString(pk), c.Request().Context())
 		if err != nil {
@@ -299,7 +297,8 @@ func (a *Api) HandleGetUser() echo.HandlerFunc {
 
 func (a *Api) HandleGetEnclaveURL() echo.HandlerFunc {
 	type input struct {
-		Email string `param:"email" validate:"required,email"`
+		Email      string `param:"email" validate:"required,email"`
+		Questioner string `query:"questioner"`
 	}
 
 	type output struct {
@@ -325,7 +324,11 @@ func (a *Api) HandleGetEnclaveURL() echo.HandlerFunc {
 		}
 
 		if user.EnclaveURL == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, "user has not been verified yet")
+			return echo.NewHTTPError(http.StatusNotFound, "user does not exist")
+		}
+
+		if in.Questioner != "enclave" {
+			user.EnclaveURL = strings.ReplaceAll(user.EnclaveURL, "host.docker.internal", "localhost")
 		}
 
 		return c.JSON(http.StatusOK, output{user.EnclaveURL})
