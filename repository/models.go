@@ -26,3 +26,12 @@ type dbSignup struct {
 	Created          int64  `db:"created"`
 	ValidUntil       int64  `db:"valid_until"`
 }
+
+type dbNotification struct {
+	ID           string `db:"id"`
+	CreationTime int64  `db:"creation_time"`
+	SendAfter    int64  `db:"execute_at"`
+	UserID       string `db:"user_id"`
+	Title        string `db:"title"`
+	Body         string `db:"body"`
+}

@@ -17,7 +17,6 @@ import (
 	"golang.org/x/exp/slices"
 	"io"
 	"net/http"
-	"net/smtp"
 	"net/url"
 	"strings"
 	"time"
@@ -412,20 +411,11 @@ func recreateSignup(userID string, tx common.Transaction, ctx context.Context) (
 }
 
 func sendActivationLink(user models.User, signup models.Signup, cfg config.Config) error {
-	receiver := []string{user.Email}
-	builder := strings.Builder{}
-	builder.WriteString(fmt.Sprintf("From: %s\r\n", cfg.Email.User))
-	builder.WriteString(fmt.Sprintf("To: %s\r\n", user.Email))
-	builder.WriteString("Subject: Activate your Elonwallet.io Account\r\n\r\n")
-	builder.WriteString("Please follow the link below to activate your account:\r\n")
-	builder.WriteString(fmt.Sprintf("%s/activate?user=%s&activation_string=%s\r\n", cfg.FrontendURL, url.QueryEscape(user.Email), signup.ActivationString))
+	title := "Activate your Elonwallet.io Account"
+	body := "Please follow the link below to activate your account:\r\n"
+	body += fmt.Sprintf("%s/activate?user=%s&activation_string=%s\r\n", cfg.FrontendURL, url.QueryEscape(user.Email), signup.ActivationString)
 
-	auth := smtp.PlainAuth("", cfg.Email.User, cfg.Email.Password, cfg.Email.AuthHost)
-	err := smtp.SendMail(cfg.Email.SmtpHost, auth, cfg.Email.User, receiver, []byte(builder.String()))
-	if err != nil {
-		return fmt.Errorf("failed to send mail: %w", err)
-	}
-	return nil
+	return common.SendEmail(cfg.Email, user.Email, title, body)
 }
 
 func getVerificationKey(enclaveURL string) (ed25519.PublicKey, error) {
