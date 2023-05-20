@@ -415,6 +415,7 @@ func recreateSignup(userID string, tx common.Transaction, ctx context.Context) (
 func sendActivationLink(user models.User, signup models.Signup, cfg config.Config) error {
 	receiver := []string{user.Email}
 	builder := strings.Builder{}
+	builder.WriteString(fmt.Sprintf("Date: %v\r\n", time.Now().UTC().Format(time.RFC1123Z)))
 	builder.WriteString(fmt.Sprintf("From: %s\r\n", cfg.Email.User))
 	builder.WriteString(fmt.Sprintf("To: %s\r\n", user.Email))
 	builder.WriteString("Subject: Activate your Elonwallet.io Account\r\n\r\n")
