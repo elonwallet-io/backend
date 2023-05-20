@@ -108,7 +108,7 @@ func fetchFromMoralis(url, apiKey string, out any) error {
 	if err != nil {
 		return fmt.Errorf("failed to instantiate request: %w", err)
 	}
-	req.Header.Add("accept", "application/json")
+	req.Header.Add("Accept", "application/json")
 	req.Header.Add("X-API-Key", apiKey)
 
 	res, err := http.DefaultClient.Do(req)

@@ -7,6 +7,7 @@ type Config struct {
 	DBConnectionString string `env:"DB_CONNECTION_STRING" validate:"required"`
 	DevelopmentMode    bool   `env:"DEVELOPMENT_MODE"`
 	Email              EmailConfig
+	Wallet             WalletConfig
 }
 
 type EmailConfig struct {
@@ -14,4 +15,9 @@ type EmailConfig struct {
 	Password string `env:"EMAIL_PASSWORD" validate:"required"`
 	AuthHost string `env:"EMAIL_AUTH_HOST" validate:"required"`
 	SmtpHost string `env:"EMAIL_SMTP_HOST" validate:"required"`
+}
+
+type WalletConfig struct {
+	PrivateKeyHex string `env:"WALLET_PRIVATE_KEY_HEX" validate:"required"`
+	Address       string `env:"WALLET_ADDRESS" validate:"required"`
 }
