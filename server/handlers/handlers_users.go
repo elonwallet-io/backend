@@ -98,11 +98,15 @@ func (a *Api) HandleAddWalletFinalize() echo.HandlerFunc {
 			Name:    in.Name,
 			Address: in.Address,
 		}, c.Request().Context())
-		if errors.Is(err, common.ErrConflict) {
-			return echo.NewHTTPError(http.StatusConflict, "Wallet is already registered")
-		}
 		if err != nil {
 			return fmt.Errorf("failed to add wallet to user: %w", err)
+		}
+
+		if len(user.Wallets) == 0 { //Send some initial MATIC tokens to new users
+			err = sendMumbaiTestMatic(in.Address, a.cfg.Wallet, c.Request().Context())
+			if err != nil {
+				return err
+			}
 		}
 
 		return c.NoContent(http.StatusCreated)
