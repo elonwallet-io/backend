@@ -12,9 +12,11 @@ var (
 )
 
 type NotificationRepository interface {
-	CreateNotification(notification models.Notification, ctx context.Context) error
+	CreateNotificationSeries(notifications []models.Notification, ctx context.Context) error
 	GetPendingNotificationsBatch(ctx context.Context) ([]models.Notification, error)
-	DeleteNotification(ID string, ctx context.Context) error
+	UpdateNotification(notification models.Notification, ctx context.Context) error
+	DeleteNotification(id int64, userID string, ctx context.Context) error
+	DeleteNotificationSeries(seriesID string, userID string, ctx context.Context) error
 }
 
 type SignupRepository interface {

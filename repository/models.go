@@ -28,9 +28,11 @@ type dbSignup struct {
 }
 
 type dbNotification struct {
-	ID           string `db:"id"`
+	ID           int64  `db:"id"`
+	SeriesID     string `db:"series_id"`
 	CreationTime int64  `db:"creation_time"`
-	SendAfter    int64  `db:"execute_at"`
+	SendAfter    int64  `db:"send_after"`
+	TimesTried   int64  `db:"times_tried"`
 	UserID       string `db:"user_id"`
 	Title        string `db:"title"`
 	Body         string `db:"body"`
