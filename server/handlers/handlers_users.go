@@ -11,7 +11,6 @@ import (
 	"github.com/Leantar/elonwallet-backend/config"
 	"github.com/Leantar/elonwallet-backend/models"
 	"github.com/Leantar/elonwallet-backend/server/common"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/exp/slices"
 	"io"
@@ -361,19 +360,6 @@ func (a *Api) HandleRemoveUser() echo.HandlerFunc {
 	}
 }
 
-func newUser(name, email string) (models.User, error) {
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return models.User{}, fmt.Errorf("failed to generate uuid: %w", err)
-	}
-
-	return models.User{
-		ID:    id.String(),
-		Name:  name,
-		Email: email,
-	}, nil
-}
-
 func newSignup(userID string) (models.Signup, error) {
 	buf := make([]byte, 32)
 	_, err := io.ReadFull(rand.Reader, buf)
@@ -390,9 +376,9 @@ func newSignup(userID string) (models.Signup, error) {
 }
 
 func createUser(name string, email string, tx common.Transaction, ctx context.Context) (models.User, error) {
-	user, err := newUser(name, email)
+	user, err := models.NewUser(name, email)
 	if err != nil {
-		return models.User{}, nil
+		return models.User{}, err
 	}
 
 	err = tx.Users().CreateUser(user, ctx)
