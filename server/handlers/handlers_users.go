@@ -329,7 +329,7 @@ func (a *Api) HandleGetEnclaveURL() echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusNotFound, "user does not exist")
 		}
 
-		if in.Questioner != "enclave" {
+		if a.cfg.Environment == "docker" && in.Questioner != "enclave" {
 			user.EnclaveURL = strings.ReplaceAll(user.EnclaveURL, "host.docker.internal", "localhost")
 		}
 
