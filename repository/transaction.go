@@ -33,3 +33,7 @@ func (t *Transaction) Users() common.UserRepository {
 func (t *Transaction) Signups() common.SignupRepository {
 	return &SignupRepository{tx: t.tx}
 }
+
+func (t *Transaction) Notifications() common.NotificationRepository {
+	return &NotificationRepository{tx: t.tx}
+}

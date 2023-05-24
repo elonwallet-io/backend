@@ -80,6 +80,8 @@ func (s *Server) Run() (err error) {
 		return
 	}
 
+	go s.workOnNotifications(s.cfg.Email)
+
 	if s.cfg.DevelopmentMode {
 		log.Info().Caller().Msgf("http server started on %s", s.echo.Server.Addr)
 		err = s.echo.Server.ListenAndServe()

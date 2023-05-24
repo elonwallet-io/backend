@@ -25,6 +25,22 @@ func (u *UserRepository) CreateUser(user models.User, ctx context.Context) error
 	return err
 }
 
+func (u *UserRepository) RemoveUser(userID string, ctx context.Context) error {
+	const query = `DELETE FROM users WHERE "id" = $1`
+
+	result, err := u.tx.ExecContext(ctx, query, userID)
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if n != 1 {
+		return common.ErrNotFound
+	}
+
+	return err
+}
+
 func (u *UserRepository) AddWalletToUser(userID string, wallet models.Wallet, ctx context.Context) error {
 	const query = `INSERT INTO wallets("address", "name", "user_id") VALUES($1,$2,$3)`
 

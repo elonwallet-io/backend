@@ -11,6 +11,14 @@ var (
 	ErrConflict = errors.New("target resource does already exist")
 )
 
+type NotificationRepository interface {
+	CreateNotificationSeries(notifications []models.Notification, ctx context.Context) error
+	GetPendingNotificationsBatch(ctx context.Context) ([]models.Notification, error)
+	UpdateNotification(notification models.Notification, ctx context.Context) error
+	DeleteNotification(id int64, userID string, ctx context.Context) error
+	DeleteNotificationSeries(seriesID string, userID string, ctx context.Context) error
+}
+
 type SignupRepository interface {
 	CreateSignup(signup models.Signup, ctx context.Context) error
 	UpdateSignup(signup models.Signup, ctx context.Context) error
@@ -19,6 +27,7 @@ type SignupRepository interface {
 
 type UserRepository interface {
 	CreateUser(user models.User, ctx context.Context) error
+	RemoveUser(userID string, ctx context.Context) error
 	AddWalletToUser(userID string, wallet models.Wallet, ctx context.Context) error
 	AddContactToUser(userID, contactID string, ctx context.Context) error
 	RemoveContactFromUser(userID, contactID string, ctx context.Context) error
@@ -32,6 +41,7 @@ type Transaction interface {
 	Rollback() error
 	Users() UserRepository
 	Signups() SignupRepository
+	Notifications() NotificationRepository
 }
 
 type TransactionFactory interface {

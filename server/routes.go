@@ -22,5 +22,11 @@ func (s *Server) registerRoutes() error {
 	s.echo.GET("/contacts", api.HandleGetContacts(), server.CheckAuthentication("user"))
 	s.echo.POST("/contacts", api.HandleCreateContact(), server.CheckAuthentication("user"))
 	s.echo.DELETE("/contacts/:email", api.HandleRemoveContact(), server.CheckAuthentication("user"))
+
+	s.echo.POST("/notifications", api.HandleSendNotification(), server.CheckAuthentication("enclave"))
+	s.echo.POST("/notifications/series", api.HandleScheduleNotificationSeries(), server.CheckAuthentication("enclave"))
+	s.echo.DELETE("/notifications/series/:series_id", api.HandleRemoveScheduledNotificationSeries(), server.CheckAuthentication("enclave"))
+
+	s.echo.DELETE("/users", api.HandleRemoveUser(), server.CheckAuthentication("enclave"))
 	return nil
 }

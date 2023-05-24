@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -17,7 +16,6 @@ import (
 	"golang.org/x/exp/slices"
 	"io"
 	"net/http"
-	"net/smtp"
 	"net/url"
 	"strings"
 	"time"
@@ -229,7 +227,7 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 			return fmt.Errorf("failed to get signup: %w", err)
 		}
 
-		if signup.ValidUntil < time.Now().Unix() {
+		if time.Now().After(time.Unix(signup.ValidUntil, 0)) {
 			return echo.NewHTTPError(http.StatusBadRequest, "activation link has expired")
 		}
 
@@ -243,7 +241,8 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 			return fmt.Errorf("failed to save updated signup: %w", err)
 		}
 
-		enclaveURL, err := deployEnclave(a.cfg.DeployerURL, user.ID)
+		deployerApiClient := common.NewDeployerApiClient(a.cfg.DeployerURL)
+		enclaveURL, err := deployerApiClient.DeployEnclave(user.ID)
 		if err != nil {
 			return err
 		}
@@ -252,8 +251,6 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 		if err != nil {
 			return err
 		}
-
-		enclaveURL = strings.ReplaceAll(enclaveURL, "host.docker.internal", "localhost")
 
 		err = tx.Users().SetEnclaveURLAndVerificationKeyForUser(user.ID, enclaveURL, hex.EncodeToString(pk), c.Request().Context())
 		if err != nil {
@@ -303,7 +300,8 @@ func (a *Api) HandleGetUser() echo.HandlerFunc {
 
 func (a *Api) HandleGetEnclaveURL() echo.HandlerFunc {
 	type input struct {
-		Email string `param:"email" validate:"required,email"`
+		Email      string `param:"email" validate:"required,email"`
+		Questioner string `query:"questioner"`
 	}
 
 	type output struct {
@@ -329,10 +327,37 @@ func (a *Api) HandleGetEnclaveURL() echo.HandlerFunc {
 		}
 
 		if user.EnclaveURL == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, "user has not been verified yet")
+			return echo.NewHTTPError(http.StatusNotFound, "user does not exist")
+		}
+
+		if in.Questioner != "enclave" {
+			user.EnclaveURL = strings.ReplaceAll(user.EnclaveURL, "host.docker.internal", "localhost")
 		}
 
 		return c.JSON(http.StatusOK, output{user.EnclaveURL})
+	}
+}
+
+func (a *Api) HandleRemoveUser() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		user := c.Get("user").(models.User)
+		tx := c.Get("tx").(common.Transaction)
+
+		err := tx.Users().RemoveUser(user.ID, c.Request().Context())
+		if errors.Is(err, common.ErrNotFound) {
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+		if err != nil {
+			return fmt.Errorf("failed to remove user: %w", err)
+		}
+
+		deployerApiClient := common.NewDeployerApiClient(a.cfg.DeployerURL)
+		err = deployerApiClient.RemoveEnclave(user.ID)
+		if err != nil {
+			return err
+		}
+
+		return c.NoContent(http.StatusOK)
 	}
 }
 
@@ -413,21 +438,11 @@ func recreateSignup(userID string, tx common.Transaction, ctx context.Context) (
 }
 
 func sendActivationLink(user models.User, signup models.Signup, cfg config.Config) error {
-	receiver := []string{user.Email}
-	builder := strings.Builder{}
-	builder.WriteString(fmt.Sprintf("Date: %v\r\n", time.Now().UTC().Format(time.RFC1123Z)))
-	builder.WriteString(fmt.Sprintf("From: %s\r\n", cfg.Email.User))
-	builder.WriteString(fmt.Sprintf("To: %s\r\n", user.Email))
-	builder.WriteString("Subject: Activate your Elonwallet.io Account\r\n\r\n")
-	builder.WriteString("Please follow the link below to activate your account:\r\n")
-	builder.WriteString(fmt.Sprintf("%s/activate?user=%s&activation_string=%s\r\n", cfg.FrontendURL, url.QueryEscape(user.Email), signup.ActivationString))
+	title := "Activate your Elonwallet.io Account"
+	body := "Please follow the link below to activate your account:\r\n"
+	body += fmt.Sprintf("%s/activate?user=%s&activation_string=%s\r\n", cfg.FrontendURL, url.QueryEscape(user.Email), signup.ActivationString)
 
-	auth := smtp.PlainAuth("", cfg.Email.User, cfg.Email.Password, cfg.Email.AuthHost)
-	err := smtp.SendMail(cfg.Email.SmtpHost, auth, cfg.Email.User, receiver, []byte(builder.String()))
-	if err != nil {
-		return fmt.Errorf("failed to send mail: %w", err)
-	}
-	return nil
+	return common.SendEmail(cfg.Email, user.Email, title, body)
 }
 
 func getVerificationKey(enclaveURL string) (ed25519.PublicKey, error) {
@@ -449,37 +464,6 @@ func getVerificationKey(enclaveURL string) (ed25519.PublicKey, error) {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 	return in.VerificationKey, nil
-}
-
-func deployEnclave(deployerURL, name string) (string, error) {
-	type payload struct {
-		Name string `json:"name"`
-	}
-
-	body, err := json.Marshal(payload{name})
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal json: %w", err)
-	}
-
-	res, err := http.Post(fmt.Sprintf("%s/enclaves", deployerURL), "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		return "", fmt.Errorf("failed to deploy enclave: %w", err)
-	}
-
-	if res.StatusCode != 200 {
-		return "", fmt.Errorf("received error status code: %d", res.StatusCode)
-	}
-
-	type input struct {
-		EnclaveURL string `json:"url"`
-	}
-
-	var in input
-	if err := json.NewDecoder(res.Body).Decode(&in); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return in.EnclaveURL, nil
 }
 
 func walletExists(address string, user models.User) bool {

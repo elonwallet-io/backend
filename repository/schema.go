@@ -38,4 +38,17 @@ var schemas = [...]string{
 			FOREIGN KEY("user_id")
 				REFERENCES users("id")
 				ON DELETE CASCADE);`,
+	`CREATE TABLE IF NOT EXISTS notifications(
+    	"id" BIGSERIAL,
+    	"series_id" TEXT NOT NULL,
+  		"creation_time" BIGINT NOT NULL,
+  		"send_after" BIGINT NOT NULL,
+  		"times_tried" BIGINT NOT NULL,
+  		"user_id" TEXT NOT NULL,
+  		"title" TEXT NOT NULL,
+  		"body" TEXT NOT NULL,
+		CONSTRAINT fk_user
+			FOREIGN KEY("user_id")
+				REFERENCES users("id")
+				ON DELETE CASCADE);`,
 }

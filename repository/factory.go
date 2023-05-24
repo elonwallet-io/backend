@@ -24,7 +24,6 @@ func (tf *TransactionFactory) migrate() error {
 	}
 
 	return nil
-
 }
 
 func (tf *TransactionFactory) Begin() (common.Transaction, error) {
