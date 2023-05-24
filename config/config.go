@@ -5,7 +5,8 @@ type Config struct {
 	FrontendURL        string `env:"FRONTEND_URL" validate:"required"`
 	DeployerURL        string `env:"DEPLOYER_URL" validate:"required"`
 	DBConnectionString string `env:"DB_CONNECTION_STRING" validate:"required"`
-	DevelopmentMode    bool   `env:"DEVELOPMENT_MODE"`
+	UseInsecureHTTP    bool   `env:"USE_INSECURE_HTTP"`
+	Environment        string `env:"ENVIRONMENT"`
 	Email              EmailConfig
 	Wallet             WalletConfig
 }

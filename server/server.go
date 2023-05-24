@@ -29,7 +29,7 @@ func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 		cc:   nil,
 	}
 
-	if cfg.DevelopmentMode {
+	if cfg.UseInsecureHTTP {
 		e.Server.ReadTimeout = 5 * time.Second
 		e.Server.WriteTimeout = 10 * time.Second
 		e.Server.IdleTimeout = 120 * time.Second
@@ -82,7 +82,7 @@ func (s *Server) Run() (err error) {
 
 	go s.workOnNotifications(s.cfg.Email)
 
-	if s.cfg.DevelopmentMode {
+	if s.cfg.UseInsecureHTTP {
 		log.Info().Caller().Msgf("http server started on %s", s.echo.Server.Addr)
 		err = s.echo.Server.ListenAndServe()
 	} else {
