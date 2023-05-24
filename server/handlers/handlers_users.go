@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -242,7 +241,8 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 			return fmt.Errorf("failed to save updated signup: %w", err)
 		}
 
-		enclaveURL, err := deployEnclave(a.cfg.DeployerURL, user.ID)
+		deployerApiClient := common.NewDeployerApiClient(a.cfg.DeployerURL)
+		enclaveURL, err := deployerApiClient.DeployEnclave(user.ID)
 		if err != nil {
 			return err
 		}
@@ -335,6 +335,29 @@ func (a *Api) HandleGetEnclaveURL() echo.HandlerFunc {
 		}
 
 		return c.JSON(http.StatusOK, output{user.EnclaveURL})
+	}
+}
+
+func (a *Api) HandleRemoveUser() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		user := c.Get("user").(models.User)
+		tx := c.Get("tx").(common.Transaction)
+
+		err := tx.Users().RemoveUser(user.ID, c.Request().Context())
+		if errors.Is(err, common.ErrNotFound) {
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+		if err != nil {
+			return fmt.Errorf("failed to remove user: %w", err)
+		}
+
+		deployerApiClient := common.NewDeployerApiClient(a.cfg.DeployerURL)
+		err = deployerApiClient.RemoveEnclave(user.ID)
+		if err != nil {
+			return err
+		}
+
+		return c.NoContent(http.StatusOK)
 	}
 }
 
@@ -441,37 +464,6 @@ func getVerificationKey(enclaveURL string) (ed25519.PublicKey, error) {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 	return in.VerificationKey, nil
-}
-
-func deployEnclave(deployerURL, name string) (string, error) {
-	type payload struct {
-		Name string `json:"name"`
-	}
-
-	body, err := json.Marshal(payload{name})
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal json: %w", err)
-	}
-
-	res, err := http.Post(fmt.Sprintf("%s/enclaves", deployerURL), "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		return "", fmt.Errorf("failed to deploy enclave: %w", err)
-	}
-
-	if res.StatusCode != 200 {
-		return "", fmt.Errorf("received error status code: %d", res.StatusCode)
-	}
-
-	type input struct {
-		EnclaveURL string `json:"url"`
-	}
-
-	var in input
-	if err := json.NewDecoder(res.Body).Decode(&in); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return in.EnclaveURL, nil
 }
 
 func walletExists(address string, user models.User) bool {

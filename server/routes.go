@@ -26,5 +26,7 @@ func (s *Server) registerRoutes() error {
 	s.echo.POST("/notifications", api.HandleSendNotification(), server.CheckAuthentication("enclave"))
 	s.echo.POST("/notifications/series", api.HandleScheduleNotificationSeries(), server.CheckAuthentication("enclave"))
 	s.echo.DELETE("/notifications/series/:series_id", api.HandleRemoveScheduledNotificationSeries(), server.CheckAuthentication("enclave"))
+
+	s.echo.DELETE("/users", api.HandleRemoveUser(), server.CheckAuthentication("enclave"))
 	return nil
 }

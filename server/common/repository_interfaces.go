@@ -27,6 +27,7 @@ type SignupRepository interface {
 
 type UserRepository interface {
 	CreateUser(user models.User, ctx context.Context) error
+	RemoveUser(userID string, ctx context.Context) error
 	AddWalletToUser(userID string, wallet models.Wallet, ctx context.Context) error
 	AddContactToUser(userID, contactID string, ctx context.Context) error
 	RemoveContactFromUser(userID, contactID string, ctx context.Context) error

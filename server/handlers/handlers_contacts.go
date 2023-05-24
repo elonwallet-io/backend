@@ -58,12 +58,20 @@ func (a *Api) HandleCreateContact() echo.HandlerFunc {
 		user := c.Get("user").(models.User)
 		tx := c.Get("tx").(common.Transaction)
 
+		if in.Email == user.Email {
+			return echo.NewHTTPError(http.StatusBadRequest, "You cannot add yourself as a contact")
+		}
+
 		con, err := tx.Users().GetUserByEmail(in.Email, c.Request().Context())
 		if errors.Is(err, common.ErrNotFound) {
-			return echo.NewHTTPError(http.StatusNotFound, "contact does not exist")
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to get contact: %w", err)
+		}
+
+		if con.EnclaveURL == "" { //user has not yet activated his account
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 
 		err = tx.Users().AddContactToUser(user.ID, con.ID, c.Request().Context())
