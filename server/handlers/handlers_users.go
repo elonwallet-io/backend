@@ -164,7 +164,7 @@ func (a *Api) HandleResendActivationLink() echo.HandlerFunc {
 
 		user, err := tx.Users().GetUserByEmail(in.Email, c.Request().Context())
 		if errors.Is(err, common.ErrNotFound) {
-			return echo.NewHTTPError(http.StatusNotFound, "user does not exist")
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to get user by email: %w", err)
@@ -215,7 +215,7 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 
 		user, err := tx.Users().GetUserByEmail(in.Email, c.Request().Context())
 		if errors.Is(err, common.ErrNotFound) {
-			return echo.NewHTTPError(http.StatusNotFound, "user does not exist")
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to get user by email: %w", err)
@@ -287,10 +287,14 @@ func (a *Api) HandleGetUser() echo.HandlerFunc {
 
 		user, err := tx.Users().GetUserByEmail(in.Email, c.Request().Context())
 		if errors.Is(err, common.ErrNotFound) {
-			return echo.NewHTTPError(http.StatusNotFound, "user does not exist")
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to get user by email: %w", err)
+		}
+
+		if user.EnclaveURL == "" {
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 
 		return c.JSON(http.StatusOK, output(user))
@@ -319,14 +323,14 @@ func (a *Api) HandleGetEnclaveURL() echo.HandlerFunc {
 
 		user, err := tx.Users().GetUserByEmail(in.Email, c.Request().Context())
 		if errors.Is(err, common.ErrNotFound) {
-			return echo.NewHTTPError(http.StatusNotFound, "user does not exist")
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to get user by email: %w", err)
 		}
 
 		if user.EnclaveURL == "" {
-			return echo.NewHTTPError(http.StatusNotFound, "user does not exist")
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 
 		if a.cfg.Environment == "docker" && in.Questioner != "enclave" {

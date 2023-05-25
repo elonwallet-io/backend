@@ -104,7 +104,7 @@ func (a *Api) HandleRemoveContact() echo.HandlerFunc {
 
 		con, err := tx.Users().GetUserByEmail(in.Email, c.Request().Context())
 		if errors.Is(err, common.ErrNotFound) {
-			return echo.NewHTTPError(http.StatusNotFound, "contact does not exist")
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to get contact: %w", err)
@@ -112,7 +112,7 @@ func (a *Api) HandleRemoveContact() echo.HandlerFunc {
 
 		err = tx.Users().RemoveContactFromUser(user.ID, con.ID, c.Request().Context())
 		if errors.Is(err, common.ErrNotFound) {
-			return echo.NewHTTPError(http.StatusNotFound, "contact does not exist")
+			return echo.NewHTTPError(http.StatusNotFound)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to remove contact: %w", err)
