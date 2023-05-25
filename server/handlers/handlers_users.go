@@ -176,11 +176,11 @@ func (a *Api) HandleResendActivationLink() echo.HandlerFunc {
 		}
 
 		if oldSignup.Activated {
-			return echo.NewHTTPError(http.StatusBadRequest, "user is already activated")
+			return echo.NewHTTPError(http.StatusBadRequest, "User is already activated")
 		}
 
 		if time.Unix(oldSignup.Created, 0).Add(time.Minute * 15).Before(time.Now()) {
-			return echo.NewHTTPError(http.StatusBadRequest, "please wait at least 15 minutes before requesting a new activation link")
+			return echo.NewHTTPError(http.StatusBadRequest, "Please wait at least 15 minutes before requesting a new activation link")
 		}
 
 		signup, err := recreateSignup(user.ID, tx, c.Request().Context())
@@ -227,11 +227,11 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 		}
 
 		if time.Now().After(time.Unix(signup.ValidUntil, 0)) {
-			return echo.NewHTTPError(http.StatusBadRequest, "activation link has expired")
+			return echo.NewHTTPError(http.StatusBadRequest, "The activation link has expired")
 		}
 
 		if signup.ActivationString != in.ActivationString {
-			return echo.NewHTTPError(http.StatusBadRequest, "invalid activation link")
+			return echo.NewHTTPError(http.StatusBadRequest, "The activation link is invalid")
 		}
 
 		signup.Activated = true
@@ -387,7 +387,7 @@ func createUser(name string, email string, tx common.Transaction, ctx context.Co
 
 	err = tx.Users().CreateUser(user, ctx)
 	if errors.Is(err, common.ErrConflict) {
-		return models.User{}, echo.NewHTTPError(http.StatusConflict, "user does already exist")
+		return models.User{}, echo.NewHTTPError(http.StatusConflict, "User does already exist")
 	}
 	if err != nil {
 		return models.User{}, fmt.Errorf("failed to create user: %w", err)
@@ -404,7 +404,7 @@ func createSignup(userID string, tx common.Transaction, ctx context.Context) (mo
 
 	err = tx.Signups().CreateSignup(signup, ctx)
 	if errors.Is(err, common.ErrConflict) {
-		return models.Signup{}, echo.NewHTTPError(http.StatusConflict, "user has already signed up")
+		return models.Signup{}, echo.NewHTTPError(http.StatusConflict, "User has already signed up")
 	}
 	if err != nil {
 		return models.Signup{}, fmt.Errorf("failed to create signup: %w", err)
