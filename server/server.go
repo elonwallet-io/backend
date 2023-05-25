@@ -31,7 +31,7 @@ func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 
 	if cfg.UseInsecureHTTP {
 		e.Server.ReadTimeout = 5 * time.Second
-		e.Server.WriteTimeout = 10 * time.Second
+		e.Server.WriteTimeout = 30 * time.Second
 		e.Server.IdleTimeout = 120 * time.Second
 		e.Server.ErrorLog = e.StdLogger
 		e.Server.Addr = "0.0.0.0:8080"
@@ -44,7 +44,7 @@ func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 		s.cc = cc
 
 		e.TLSServer.ReadTimeout = 5 * time.Second
-		e.TLSServer.WriteTimeout = 10 * time.Second
+		e.TLSServer.WriteTimeout = 30 * time.Second
 		e.TLSServer.IdleTimeout = 120 * time.Second
 		e.Server.ErrorLog = e.StdLogger
 		e.TLSServer.TLSConfig = &tls.Config{
