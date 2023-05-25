@@ -21,6 +21,9 @@ func (s *Server) workOnNotifications(cfg config.EmailConfig) {
 
 		err = handlePendingNotifications(tx, cfg, ctx)
 		if errors.Is(err, common.ErrNotFound) {
+			if err := tx.Commit(); err != nil {
+				log.Error().Caller().Err(err).Msg("failed to commit tx")
+			}
 			sleepTime := 10 * time.Minute
 			log.Info().Caller().Msgf("No pending notifications. Sleeping until %v", time.Now().Add(sleepTime))
 			time.Sleep(sleepTime)
