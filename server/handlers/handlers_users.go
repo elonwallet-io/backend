@@ -226,6 +226,10 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 			return fmt.Errorf("failed to get signup: %w", err)
 		}
 
+		if signup.Activated {
+			return echo.NewHTTPError(http.StatusBadRequest, "User is already activated")
+		}
+
 		if time.Now().After(time.Unix(signup.ValidUntil, 0)) {
 			return echo.NewHTTPError(http.StatusBadRequest, "The activation link has expired")
 		}
