@@ -35,7 +35,7 @@ func generateUniqueUserID() (string, error) {
 	var charsetLength = new(big.Int).SetInt64(int64(len(charset)))
 
 	var sb strings.Builder
-	for i := 0; i < 36; i++ {
+	for i := 0; i < 28; i++ {
 		index, err := rand.Int(rand.Reader, charsetLength)
 		if err != nil {
 			return "", fmt.Errorf("failed to generate random char: %w", err)
