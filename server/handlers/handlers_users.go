@@ -202,6 +202,10 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 		Email            string `param:"email" validate:"required,email"`
 		ActivationString string `json:"activation_string" validate:"required,hexadecimal,len=64"`
 	}
+
+	type output struct {
+		EnclaveURL string `json:"enclave_url"`
+	}
 	return func(c echo.Context) error {
 		var in input
 		if err := c.Bind(&in); err != nil {
@@ -260,7 +264,11 @@ func (a *Api) HandleActivateUser() echo.HandlerFunc {
 			return fmt.Errorf("failed to save enclave url: %w", err)
 		}
 
-		return c.NoContent(http.StatusOK)
+		if a.cfg.Environment == "docker" {
+			enclaveURL = strings.ReplaceAll(enclaveURL, "host.docker.internal", "localhost")
+		}
+
+		return c.JSON(http.StatusOK, output{enclaveURL})
 	}
 }
 
