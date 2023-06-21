@@ -2,9 +2,10 @@ package config
 
 type Config struct {
 	MoralisApiKey      string `env:"MORALIS_API_KEY" validate:"required"`
+	DBConnectionString string `env:"DB_CONNECTION_STRING" validate:"required"`
+	BackendHost        string `env:"BACKEND_HOST" validate:"required_if=UseInsecureHTTP false"`
 	FrontendURL        string `env:"FRONTEND_URL" validate:"required"`
 	DeployerURL        string `env:"DEPLOYER_URL" validate:"required"`
-	DBConnectionString string `env:"DB_CONNECTION_STRING" validate:"required"`
 	UseInsecureHTTP    bool   `env:"USE_INSECURE_HTTP"`
 	Environment        string `env:"ENVIRONMENT"`
 	Email              EmailConfig
