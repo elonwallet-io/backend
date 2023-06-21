@@ -9,15 +9,17 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/acme"
+	"golang.org/x/crypto/acme/autocert"
 	"net/http"
 	"time"
 )
 
 type Server struct {
-	echo *echo.Echo
-	cfg  config.Config
-	tf   common.TransactionFactory
-	cc   *CertificateCache
+	echo   *echo.Echo
+	cfg    config.Config
+	tf     common.TransactionFactory
+	tlsMgr *autocert.Manager
 }
 
 func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
@@ -26,7 +28,6 @@ func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 		echo: e,
 		cfg:  cfg,
 		tf:   tf,
-		cc:   nil,
 	}
 
 	if cfg.UseInsecureHTTP {
@@ -36,12 +37,14 @@ func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 		e.Server.ErrorLog = e.StdLogger
 		e.Server.Addr = "0.0.0.0:8080"
 	} else {
-		cc, err := NewCertificateCache("/certs/backend-cert.pem", "/certs/backend-key.pem")
-		if err != nil {
-			return nil, err
-		}
+		log.Error().Caller().Msgf("value is: %s", cfg.BackendHost)
 
-		s.cc = cc
+		tlsMgr := autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			Cache:      autocert.DirCache("/data/.cache"),
+			HostPolicy: autocert.HostWhitelist(cfg.BackendHost),
+		}
+		s.tlsMgr = &tlsMgr
 
 		e.TLSServer.ReadTimeout = 5 * time.Second
 		e.TLSServer.WriteTimeout = 30 * time.Second
@@ -57,7 +60,8 @@ func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 			},
-			GetCertificate: cc.GetCertificate,
+			GetCertificate: s.tlsMgr.GetCertificate,
+			NextProtos:     []string{acme.ALPNProto},
 		}
 		e.TLSServer.Addr = "0.0.0.0:8443"
 	}
