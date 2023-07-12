@@ -32,7 +32,7 @@ func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 
 	if cfg.UseInsecureHTTP {
 		e.Server.ReadTimeout = 5 * time.Second
-		e.Server.WriteTimeout = 30 * time.Second
+		e.Server.WriteTimeout = 120 * time.Second
 		e.Server.IdleTimeout = 120 * time.Second
 		e.Server.ErrorLog = e.StdLogger
 		e.Server.Addr = "0.0.0.0:8080"
