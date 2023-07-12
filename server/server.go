@@ -47,7 +47,7 @@ func New(cfg config.Config, tf common.TransactionFactory) (*Server, error) {
 		s.tlsMgr = &tlsMgr
 
 		e.TLSServer.ReadTimeout = 5 * time.Second
-		e.TLSServer.WriteTimeout = 30 * time.Second
+		e.TLSServer.WriteTimeout = 120 * time.Second
 		e.TLSServer.IdleTimeout = 120 * time.Second
 		e.Server.ErrorLog = e.StdLogger
 		e.TLSServer.TLSConfig = &tls.Config{
