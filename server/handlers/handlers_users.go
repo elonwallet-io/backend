@@ -388,6 +388,7 @@ func newSignup(userID string) (models.Signup, error) {
 		Activated:        false,
 		ActivationString: hex.EncodeToString(buf),
 		ValidUntil:       time.Now().Add(time.Hour * 336).Unix(),
+		Created:          time.Now().Unix(),
 	}, nil
 }
 
