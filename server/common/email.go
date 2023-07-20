@@ -5,11 +5,13 @@ import (
 	"github.com/Leantar/elonwallet-backend/config"
 	"net/smtp"
 	"strings"
+	"time"
 )
 
 func SendEmail(cfg config.EmailConfig, recipient, title, body string) error {
 	receiver := []string{recipient}
 	builder := strings.Builder{}
+	builder.WriteString(fmt.Sprintf("Date: %s\r\n", time.Now().UTC().Format(time.RFC1123Z)))
 	builder.WriteString(fmt.Sprintf("From: %s\r\n", cfg.User))
 	builder.WriteString(fmt.Sprintf("To: %s\r\n", recipient))
 	builder.WriteString(fmt.Sprintf("Subject: %s\r\n\r\n", title))
