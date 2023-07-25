@@ -179,7 +179,7 @@ func (a *Api) HandleResendActivationLink() echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusBadRequest, "User is already activated")
 		}
 
-		if time.Unix(oldSignup.Created, 0).Add(time.Minute * 15).Before(time.Now()) {
+		if time.Now().Before(time.Unix(oldSignup.Created, 0).Add(time.Minute * 15)) {
 			return echo.NewHTTPError(http.StatusBadRequest, "Please wait at least 15 minutes before requesting a new activation link")
 		}
 
